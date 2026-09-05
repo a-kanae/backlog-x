@@ -1,0 +1,63 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# kuromoji 辞書（postinstall で node_modules からコピー。リポジトリには含めない）
+/public/dict
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# backlog-x: 作業用一時ディレクトリ (実データ・スクリプト・dev サーバーログ等)
+/tmp/
+
+# backlog-x: 認証情報・機微ファイル (絶対にコミットしない)
+# Backlog API キー
+backlog_api_key
+*backlog_api_key*
+# Firebase サービスアカウント / Admin SDK 鍵
+*serviceAccount*.json
+*-key.json
+firebase-adminsdk-*.json
+# Firebase のデプロイ先プロジェクト（各自の環境ごとに異なる。.firebaserc.example を複製して使う）
+.firebaserc
+.firebaserc.local
+# Firebase エミュレータのデータ・デバッグログ
+/.firebase/
+firebase-debug.log*
+firestore-debug.log*
