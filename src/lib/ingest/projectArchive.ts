@@ -37,6 +37,7 @@ import {
   ICONS_FORMAT,
 } from "@/types/export";
 import {
+  deleteProjectRecords,
   getProjectMeta,
   getIssuesByProject,
   getCommentsByProject,
@@ -562,4 +563,26 @@ export async function importIcons(data: IconsExport): Promise<number> {
   }));
   await putUserIcons(icons);
   return icons.length;
+}
+
+/**
+ * プロジェクト 1 件分の取り込み済みデータをすべて削除する。
+ *
+ * IndexedDB のレコード（課題・コメント・添付メタ・Wiki・ドキュメント・マスタ・メンバー・
+ * 検索インデックス・プロジェクトアイコン・メタ）と、OPFS に保存した添付バイナリの両方を
+ * 消す。片方だけ消すと「一覧には出ないのにストレージを食い続ける」状態になるため、
+ * 必ずここを通す。
+ *
+ * サンプルデータを試した人が元に戻せるようにするための機能でもある（ブラウザのサイト
+ * データ削除を案内せずに済ませる）。取り込みの逆操作なので ingest 層に置く。
+ *
+ * @returns 共有マスタ（users / userIcons）も消えたか（= プロジェクトが 0 件になった）
+ */
+export async function deleteProject(
+  projectId: number,
+): Promise<{ clearedSharedMasters: boolean }> {
+  // 添付バイナリを先に消す。DB を先に消すと、途中で失敗したときに「消し残った
+  // OPFS のディレクトリを特定する手がかり（projectMeta）」が無くなる。
+  await clearProjectAttachments(projectId);
+  return deleteProjectRecords(projectId);
 }

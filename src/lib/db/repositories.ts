@@ -586,3 +586,85 @@ export async function getDocumentsByProject(
   const db = await getDB();
   return db.getAllFromIndex("documents", "by-project", projectId);
 }
+
+// --- delete 系 ---
+
+/**
+ * `by-project` インデックスを持つストアから、そのプロジェクトのレコードを全削除する。
+ *
+ * カーソルを 1 件ずつ進めるのではなくキーをまとめて取ってから消す（大量件数でも
+ * トランザクションを短く保てる）。ストア名はインデックスを持つものだけに型で絞る。
+ */
+async function clearByProjectIndex<
+  N extends
+    | "issues"
+    | "comments"
+    | "attachmentMeta"
+    | "projectMembers"
+    | "searchIndex"
+    | "wikis"
+    | "documents",
+>(storeName: N, projectId: number): Promise<void> {
+  const db = await getDB();
+  // ジェネリックなストア名のままでは idb がインデックスの値型を絞れないため、
+  // 生の projectId ではなく IDBKeyRange を渡す（どのストアでも受け取れる形）。
+  const keys = await db.getAllKeysFromIndex(
+    storeName,
+    "by-project",
+    IDBKeyRange.only(projectId),
+  );
+  for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+    const batch = keys.slice(i, i + BATCH_SIZE);
+    const tx = db.transaction(storeName, "readwrite");
+    await Promise.all([...batch.map((k) => tx.store.delete(k)), tx.done]);
+  }
+}
+
+/**
+ * プロジェクト 1 件分のレコードを IndexedDB から削除する（添付バイナリは OPFS 側で別途）。
+ *
+ * `users` / `userIcons` は projectId を持たない共有マスタなので、そのプロジェクトを消す
+ * だけでは消えない。**プロジェクトが 1 件も残らなくなったときに限って**まとめて消す
+ * （他プロジェクトが参照している可能性を潰さずに、「全部消したのに人だけ残る」状態も
+ * 作らないための折衷）。
+ *
+ * @returns 共有マスタ（users / userIcons）も消したか
+ */
+export async function deleteProjectRecords(
+  projectId: number,
+): Promise<{ clearedSharedMasters: boolean }> {
+  const db = await getDB();
+
+  await clearByProjectIndex("issues", projectId);
+  await clearByProjectIndex("comments", projectId);
+  await clearByProjectIndex("attachmentMeta", projectId);
+  await clearByProjectIndex("projectMembers", projectId);
+  await clearByProjectIndex("searchIndex", projectId);
+  await clearByProjectIndex("wikis", projectId);
+  await clearByProjectIndex("documents", projectId);
+
+  // masters は by-project 単独のインデックスを持たない（by-project-kind の複合のみ）。
+  // 取得側の getMastersByProject が kind を横断して集めてくれるので、その key を消す。
+  const masters = await getMastersByProject(projectId);
+  if (masters.length > 0) {
+    const tx = db.transaction("masters", "readwrite");
+    await Promise.all([
+      ...masters.map((m) =>
+        tx.store.delete(`${projectId}:${m.kind}:${m.master.id}`),
+      ),
+      tx.done,
+    ]);
+  }
+
+  // projectId が主キーのストア
+  await db.delete("projectIcons", projectId);
+  await db.delete("projectMeta", projectId);
+
+  const remaining = await db.count("projectMeta");
+  if (remaining === 0) {
+    await db.clear("users");
+    await db.clear("userIcons");
+    return { clearedSharedMasters: true };
+  }
+  return { clearedSharedMasters: false };
+}

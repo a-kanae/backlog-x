@@ -8,6 +8,7 @@ import { formatDateTime } from "@/lib/format";
 import { ExportButton } from "@/components/ingest/ExportButton";
 import { RebuildIndexButton } from "@/components/ingest/RebuildIndexButton";
 import { SampleDataButton } from "@/components/ingest/SampleDataButton";
+import { DeleteProjectButton } from "@/components/ingest/DeleteProjectButton";
 import { ProjectIcon } from "@/components/ui/ProjectIcon";
 import { listSavedAttachmentIds } from "@/lib/storage/opfs";
 
@@ -115,6 +116,16 @@ export function ProjectList() {
             </Link>
             <RebuildIndexButton projectId={p.projectId} />
             <ExportButton projectId={p.projectId} projectKey={p.projectKey} />
+            <DeleteProjectButton
+              projectId={p.projectId}
+              projectKey={p.projectKey}
+              onDeleted={(deletedId) =>
+                setProjects(
+                  (prev) =>
+                    prev?.filter((x) => x.projectId !== deletedId) ?? null,
+                )
+              }
+            />
           </li>
         ))}
       </ul>
