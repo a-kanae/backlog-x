@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write .",
+    "sample": "node scripts/make-sample-dump.mjs",
     "postinstall": "node scripts/copy-dict.mjs",
     "prebuild": "node scripts/copy-dict.mjs",
     "prepare": "husky"

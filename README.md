@@ -8,6 +8,14 @@ Backlog の課題・コメント・Wiki・ドキュメント・添付ファイ�
 
 ## 使い方
 
+### まず試す（Backlog のアカウント不要）
+
+<https://backlog-x-prd.web.app> を開いて「サンプルデータで試す」を押すと、同梱のサンプル（架空のプロジェクト・課題 60 件・コメント 212 件・Wiki 6 ページ）を読み込みます。一覧・全文検索・課題詳細・Backlog 記法の表示をそのまま触れます。API キーもアカウントも要りません。
+
+サンプルの中身はすべて架空です。読み込んだデータもこのブラウザの中だけに保存されます。
+
+### 自分のデータを取り込む
+
 使う方法は 2 つあります。
 
 - **用意してあるサイトを開く** — <https://backlog-x-prd.web.app>（インストール不要）
@@ -87,6 +95,12 @@ npm run dev   # http://localhost:3000
 ```
 
 Next.js / IndexedDB + OPFS / flexsearch + kuromoji で作っています。開発は dev サーバーを使ってください（`output: 'export'` は dev では無効化され、動的ルートに実 ID で直接アクセスできます）。
+
+デモ用のサンプルデータは生成スクリプトで作り直せます。出力先は `public/sample/` で、中身は Backlog API のレスポンスと同じ形（ダンプ形式）なので、取り込みは通常の経路をそのまま通ります。
+
+```bash
+npm run sample
+```
 
 このリポジトリの Next.js は破壊的変更を含むバージョンです。コードを書く前に `node_modules/next/dist/docs/` を参照してください（`AGENTS.md` 参照）。
 

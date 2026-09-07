@@ -7,6 +7,7 @@ import type { ProjectMeta } from "@/types/entities";
 import { formatDateTime } from "@/lib/format";
 import { ExportButton } from "@/components/ingest/ExportButton";
 import { RebuildIndexButton } from "@/components/ingest/RebuildIndexButton";
+import { SampleDataButton } from "@/components/ingest/SampleDataButton";
 import { ProjectIcon } from "@/components/ui/ProjectIcon";
 import { listSavedAttachmentIds } from "@/lib/storage/opfs";
 
@@ -52,12 +53,23 @@ export function ProjectList() {
           課題・コメントを検索・閲覧できます。データはブラウザのローカル
           DB（IndexedDB）にのみ 保存され、外部には送信されません。
         </p>
-        <Link
-          href="/setup"
-          className="inline-flex w-fit items-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-        >
-          データを取り込む
-        </Link>
+        <div className="flex flex-wrap items-start gap-3">
+          <Link
+            href="/setup"
+            className="inline-flex w-fit items-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          >
+            データを取り込む
+          </Link>
+          <SampleDataButton />
+        </div>
+        <p className="text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+          Backlog のアカウントがなくても、
+          <strong className="font-medium text-zinc-700 dark:text-zinc-300">
+            サンプルデータ
+          </strong>
+          を読み込めば一覧・全文検索・課題詳細をそのまま試せます（架空のプロジェクト・課題
+          60 件）。読み込んだデータもこのブラウザの中だけに保存されます。
+        </p>
       </section>
     );
   }
