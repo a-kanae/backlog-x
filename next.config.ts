@@ -9,6 +9,10 @@ const isDev = process.env.NODE_ENV === "development";
 
 const nextConfig: NextConfig = {
   ...(isDev ? {} : { output: "export" }),
+  // 開発サーバーを <名前>.localhost で開けるようにする（git worktree で並行開発するとき、worktree ごとに
+  // ホスト名を分けて取り込んだデータ（IndexedDB）を混ぜないため）。localhost 以外のホストから
+  // dev 用のリソースへのアクセスは既定で弾かれる。
+  allowedDevOrigins: ["*.localhost"],
 };
 
 export default nextConfig;
