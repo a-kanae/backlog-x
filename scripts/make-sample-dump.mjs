@@ -359,7 +359,7 @@ const SHOWCASE_DESCRIPTION = [
   "** 関連リンク",
   // Backlog の課題 URL（このスペース）は、外部リンクではなく手元の課題へのリンクに変換される。
   // コメントのアンカー（#comment-<id>）付きなら、そのコメントへジャンプする。
-  // コメント ID は生成のあとで埋める（{{FIRST_COMMENT_OF_<keyId>}} → その課題の最初のコメント ID）。
+  // コメント ID は生成のあとで埋める（{{FIRST_COMMENT_OF_<keyId>}} → その課題の本文のある最初のコメント ID）。
   `- 同じ原因の課題: ${SPACE_URL}/view/${PROJECT_KEY}-4`,
   `- 経緯はこのコメント: ${SPACE_URL}/view/${PROJECT_KEY}-2#comment-{{FIRST_COMMENT_OF_2}}`,
   `- この課題の最初のコメント: ${SPACE_URL}/view/${PROJECT_KEY}-1#comment-{{FIRST_COMMENT_OF_1}}`,
@@ -538,9 +538,12 @@ const rawDocuments = [
 
 // --- コメント ID のプレースホルダを埋める ---
 // 本文の例が指すコメント ID は採番（上のループ順）で決まるので、生成が終わってから埋める。
+// 本文のある最初のコメントを選ぶ（変更ログだけのコメントを指すと、飛んだ先に本文が無い）
 const firstCommentOf = (keyId) => {
-  const c = rawComments.find((c) => c.issueId === 900000 + keyId);
-  if (!c) throw new Error(`keyId=${keyId} にコメントがありません`);
+  const c = rawComments.find(
+    (c) => c.issueId === 900000 + keyId && c.content != null,
+  );
+  if (!c) throw new Error(`keyId=${keyId} に本文のあるコメントがありません`);
   return String(c.id);
 };
 const fillCommentIds = (text) =>

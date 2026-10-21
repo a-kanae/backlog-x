@@ -72,7 +72,7 @@ export function CommentThread({
   const [comments, setComments] = useState<StoredComment[] | null>(null);
   // ジャンプ対象のコメント ID（URL ハッシュ #comment-<id>）。マウント時に読み、以後は hashchange で
   // 追従する。同じ課題の本文・コメントの中にあるコメントへのリンク（BacklogText）は、Next の Link
-  // ではなくブラウザ標準のハッシュ遷移で開くので hashchange が発火する。
+  // に任せず navigateToHash（pushState ＋ hashchange を自分で投げる）で開くので、ここで拾える。
   const [targetId, setTargetId] = useState<number | null>(
     () => parseDetailHash().commentId,
   );
@@ -99,24 +99,27 @@ export function CommentThread({
 
   const visible = comments === null ? [] : comments.filter(isMeaningful);
 
-  // コメントが読み込まれた（＝別の課題に差し替わった）瞬間に、描画件数を初期化する。
-  // 加えて、検索結果 / URL ハッシュ #comment-<id> でジャンプしてきた対象が初期描画範囲より
-  // 後ろにあれば、その対象を含むところまで初期 visibleCount を引き上げる（未描画だと
+  // 描画件数の調整（レンダー中に setState する公式パターン。同期エフェクト内 setState
+  // （set-state-in-effect）を避ける。IssueList と同じ流儀）。
+  // - コメントが読み込まれた（＝別の課題に差し替わった）瞬間: PAGE_SIZE に初期化
+  // - ジャンプ対象（targetId）が変わった瞬間（hashchange）: 今の件数を基準にする
+  // どちらも、対象が基準より後ろにあればその対象を含むところまで引き上げる（未描画だと
   // スクロール先が DOM に無く scrollToSelectorWithRetry が空振りするため）。
-  // 判定は取得完了で参照が変わる comments をキーに「レンダー中リセットする」公式パターンで
-  // 行い、同期エフェクト内 setState（set-state-in-effect）を避ける（IssueList と同じ流儀）。
-  const [renderedFor, setRenderedFor] = useState<StoredComment[] | null>(null);
-  if (comments !== null && renderedFor !== comments) {
-    setRenderedFor(comments);
-    setVisibleCount(Math.max(PAGE_SIZE, countToShow(visible, targetId)));
-  }
-  // 表示中にハッシュが変わって（同じ課題の中のコメントへのリンク）、対象がまだ描画されて
-  // いない後ろにあれば、同じ流儀で描画件数を引き上げる。読み進めで増えた分は減らさない。
-  const [renderedTarget, setRenderedTarget] = useState<number | null>(targetId);
-  if (renderedTarget !== targetId) {
-    setRenderedTarget(targetId);
-    const need = countToShow(visible, targetId);
-    if (need > visibleCount) setVisibleCount(need);
+  // 読み進めで増えた分は、対象が変わっても減らさない。
+  const [rendered, setRendered] = useState<{
+    comments: StoredComment[] | null;
+    targetId: number | null;
+  }>({ comments: null, targetId });
+  if (
+    comments !== null &&
+    (rendered.comments !== comments || rendered.targetId !== targetId)
+  ) {
+    const base = rendered.comments !== comments ? PAGE_SIZE : visibleCount;
+    setRendered({ comments, targetId });
+    const next = Math.max(base, countToShow(visible, targetId));
+    if (next !== visibleCount) setVisibleCount(next);
+    // ハッシュが外れたら（対象が無くなったら）強調も消す
+    if (targetId == null && highlightId != null) setHighlightId(null);
   }
 
   // URL ハッシュ #comment-<id> の対象コメントへスクロール + 枠ハイライト（検索結果からの遷移）。

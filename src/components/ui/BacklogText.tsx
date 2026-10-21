@@ -9,7 +9,11 @@ import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import type { AttachmentMeta, StoredUser } from "@/types/entities";
 import { rehypeHighlightTerm } from "@/lib/highlight/rehypeHighlightTerm";
-import { readHighlightTerm } from "@/lib/routing/params";
+import {
+  navigateToHash,
+  parseIssueRoute,
+  readHighlightTerm,
+} from "@/lib/routing/params";
 import { useScrollToFirstHighlight } from "@/lib/highlight/useHighlightInContainer";
 import {
   backlogToMarkdown,
@@ -60,8 +64,9 @@ export function BacklogText({
   highlight?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  // 今いるページのパス。同じ課題の中のコメントへのリンクを見分けるのに使う（下の a）。
-  const pathname = usePathname();
+  // 今いる課題（/projects/:projectId/issues/:keyId）。同じ課題の中のコメントへのリンクを
+  // 見分けるのに使う（下の a）。パスの文字列でなく解釈した値で比べる（末尾の / の有無など）。
+  const currentIssue = parseIssueRoute(usePathname() ?? "");
   // highlight のときだけ URL ハッシュ #q= の語を rehype プラグインでハイライトする
   // （コメント本文などは false で無効）。プラグインは AST 段階で <mark> を差し込むので
   // 再レンダリングでも消えない。描画後に最初の一致へスクロールするのは hook が担う。
@@ -150,20 +155,31 @@ export function BacklogText({
         const keyId = hashAt < 0 ? target : target.slice(0, hashAt);
         const hash = hashAt < 0 ? "" : target.slice(hashAt);
         const path = `/projects/${projectId}/issues/${keyId}`;
-        // 同じ課題の中のコメントへのリンク（パスが今のページと同じでアンカーだけ違う）は、
-        // Next の Link に任せない。Link は pushState で URL を変えるので hashchange が発火せず、
-        // CommentThread がアンカーの変化に気づけない（ジャンプも枠の強調も起きない）。
-        // ブラウザ標準のハッシュ遷移（location.hash への代入）なら hashchange が発火する。
-        // Next の popstate 処理は、Next 以外が作った履歴（state が無い）では何もしないので安全。
-        const sameIssue = hash !== "" && pathname === path;
+        // 同じ課題の中のコメントへのリンク（今の課題と同じでアンカーだけ違う）は、Next の Link に
+        // 任せない。Link は pushState で URL を変えるので hashchange が発火せず、CommentThread が
+        // アンカーの変化に気づけない（ジャンプも枠の強調も起きない）。navigateToHash で
+        // pushState（Next が内部 state を引き継ぐ）＋ hashchange を自分で投げる。
+        // 修飾キー付き・左以外のクリック（新しいタブで開くなど）はブラウザの既定に任せる。
+        const sameIssue =
+          hash !== "" &&
+          currentIssue.projectId === projectId &&
+          currentIssue.keyId === Number(keyId);
         return (
           <Link
             href={`${path}${hash}`}
             onClick={
               sameIssue
                 ? (e) => {
+                    if (
+                      e.button !== 0 ||
+                      e.metaKey ||
+                      e.ctrlKey ||
+                      e.shiftKey ||
+                      e.altKey
+                    )
+                      return;
                     e.preventDefault();
-                    window.location.hash = hash;
+                    navigateToHash(hash);
                   }
                 : undefined
             }

@@ -120,6 +120,27 @@ export function parseDetailHash(): DetailHash {
   return result;
 }
 
+/**
+ * 同じページの中でアンカー（URL ハッシュ）だけを変えて移動する。
+ *
+ * Next の Link は pushState で URL を変えるので hashchange が発火せず、ハッシュを読んで動く
+ * 側（CommentThread の #comment-<id> へのジャンプ）が変化に気づけない。かといって
+ * `location.hash` へ代入すると、その履歴は Next の内部 state を持たないので、そのあと別の
+ * ページへ移って「戻る」を押したとき Next の popstate 処理が無視し（`if (!event.state) return`）、
+ * URL は戻るのに画面が移った先のまま残る。
+ *
+ * そこで `history.pushState` を使う。Next はこれを差し替えていて（app-router の
+ * `copyNextJsInternalHistoryState`）、内部 state を新しい履歴に引き継ぎ、ルーターにも URL を
+ * 反映する。pushState は hashchange を発火しないので、自分で投げる。ブラウザが自分でも
+ * スクロールすることはない（pushState はスクロールしない）ので、ジャンプは hashchange を
+ * 受けた側だけが行う。
+ */
+export function navigateToHash(hash: string): void {
+  const next = hash.startsWith("#") ? hash : `#${hash}`;
+  window.history.pushState(null, "", next);
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
+}
+
 /** 本文ハイライト用の検索語だけを読む薄いラッパ（parseDetailHash().highlightTerm）。 */
 export function readHighlightTerm(): string {
   return parseDetailHash().highlightTerm;
