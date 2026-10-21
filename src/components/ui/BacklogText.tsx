@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import ReactMarkdown, { type Components } from "react-markdown";
 import type { PluggableList } from "unified";
 import remarkGfm from "remark-gfm";
@@ -59,6 +60,8 @@ export function BacklogText({
   highlight?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // 今いるページのパス。同じ課題の中のコメントへのリンクを見分けるのに使う（下の a）。
+  const pathname = usePathname();
   // highlight のときだけ URL ハッシュ #q= の語を rehype プラグインでハイライトする
   // （コメント本文などは false で無効）。プラグインは AST 段階で <mark> を差し込むので
   // 再レンダリングでも消えない。描画後に最初の一致へスクロールするのは hook が担う。
@@ -146,9 +149,24 @@ export function BacklogText({
         const hashAt = target.indexOf("#");
         const keyId = hashAt < 0 ? target : target.slice(0, hashAt);
         const hash = hashAt < 0 ? "" : target.slice(hashAt);
+        const path = `/projects/${projectId}/issues/${keyId}`;
+        // 同じ課題の中のコメントへのリンク（パスが今のページと同じでアンカーだけ違う）は、
+        // Next の Link に任せない。Link は pushState で URL を変えるので hashchange が発火せず、
+        // CommentThread がアンカーの変化に気づけない（ジャンプも枠の強調も起きない）。
+        // ブラウザ標準のハッシュ遷移（location.hash への代入）なら hashchange が発火する。
+        // Next の popstate 処理は、Next 以外が作った履歴（state が無い）では何もしないので安全。
+        const sameIssue = hash !== "" && pathname === path;
         return (
           <Link
-            href={`/projects/${projectId}/issues/${keyId}${hash}`}
+            href={`${path}${hash}`}
+            onClick={
+              sameIssue
+                ? (e) => {
+                    e.preventDefault();
+                    window.location.hash = hash;
+                  }
+                : undefined
+            }
             className="text-sky-600 underline hover:text-sky-700 dark:text-sky-400"
           >
             {children}

@@ -283,8 +283,6 @@ const commentTemplates = [
   () => `ありがとうございます。${pick(devices)} で表示が直っていました。`,
   () => `デザイン側の確認が必要なので、いったん保留にします。`,
   () => `${PROJECT_KEY}-${int(1, 60)} と同じ原因でした。合わせて対応します。`,
-  () =>
-    `同じ話を ${SPACE_URL}/view/${PROJECT_KEY}-${int(1, 60)} でもしています。そちらも見てください。`,
   () => `文言を修正しました。細かい表記は校正で拾ってもらう想定です。`,
   () =>
     `検索したところ、同じ書き方が他に ${int(2, 8)} 箇所ありました。まとめて直します。`,
@@ -360,10 +358,11 @@ const SHOWCASE_DESCRIPTION = [
   "",
   "** 関連リンク",
   // Backlog の課題 URL（このスペース）は、外部リンクではなく手元の課題へのリンクに変換される。
-  // コメントのアンカー（#comment-<id>）付きなら、そのコメントへジャンプする
-  // （500001 は keyId=1 の最初のコメント ID。採番は下のループ順）。
+  // コメントのアンカー（#comment-<id>）付きなら、そのコメントへジャンプする。
+  // コメント ID は生成のあとで埋める（{{FIRST_COMMENT_OF_<keyId>}} → その課題の最初のコメント ID）。
   `- 同じ原因の課題: ${SPACE_URL}/view/${PROJECT_KEY}-4`,
-  `- 経緯はこのコメント: ${SPACE_URL}/view/${PROJECT_KEY}-1#comment-500001`,
+  `- 経緯はこのコメント: ${SPACE_URL}/view/${PROJECT_KEY}-2#comment-{{FIRST_COMMENT_OF_2}}`,
+  `- この課題の最初のコメント: ${SPACE_URL}/view/${PROJECT_KEY}-1#comment-{{FIRST_COMMENT_OF_1}}`,
   `- [[依頼元の課題>${SPACE_URL}/view/${PROJECT_KEY}-15]]`,
   // 別スペース・別プロジェクトの課題 URL は手元に無いので外部リンクのまま残る
   "- 別スペースの参考: https://another-space.backlog.jp/view/OTHER-12",
@@ -481,7 +480,7 @@ const rawWikis = [
   },
   {
     name: "議事録/2026-06-15 定例",
-    content: `* 参加者\n\n- 山田 太郎\n- 鈴木 花子\n- 佐藤 次郎\n\n* 決定事項\n\n- 公開日は 6/30 を目標にする\n- 多言語対応は次のフェーズに回す\n\n* 次回までの宿題\n\n@佐藤 次郎 さん: 表示速度の計測結果をまとめる（${PROJECT_KEY}-31）\n\n* 関連\n\n- ${SPACE_URL}/view/${PROJECT_KEY}-1#comment-500001\n- https://another-space.backlog.jp/view/OTHER-12`,
+    content: `* 参加者\n\n- 山田 太郎\n- 鈴木 花子\n- 佐藤 次郎\n\n* 決定事項\n\n- 公開日は 6/30 を目標にする\n- 多言語対応は次のフェーズに回す\n\n* 次回までの宿題\n\n@佐藤 次郎 さん: 表示速度の計測結果をまとめる（${PROJECT_KEY}-31）\n\n* 関連\n\n- ${SPACE_URL}/view/${PROJECT_KEY}-1#comment-{{FIRST_COMMENT_OF_1}}\n- https://another-space.backlog.jp/view/OTHER-12`,
   },
   { name: "空ページの例", content: null },
 ].map((w, i) => ({
@@ -536,6 +535,32 @@ const rawDocuments = [
     updated: iso(2026, 6, 1, 13, 10),
   },
 ];
+
+// --- コメント ID のプレースホルダを埋める ---
+// 本文の例が指すコメント ID は採番（上のループ順）で決まるので、生成が終わってから埋める。
+const firstCommentOf = (keyId) => {
+  const c = rawComments.find((c) => c.issueId === 900000 + keyId);
+  if (!c) throw new Error(`keyId=${keyId} にコメントがありません`);
+  return String(c.id);
+};
+const fillCommentIds = (text) =>
+  text == null
+    ? text
+    : text.replace(/\{\{FIRST_COMMENT_OF_(\d+)\}\}/g, (_m, k) =>
+        firstCommentOf(Number(k)),
+      );
+for (const i of rawIssues) i.description = fillCommentIds(i.description);
+for (const w of rawWikis) w.content = fillCommentIds(w.content);
+
+// コメント本文にも課題 URL（このスペース）の例を 1 つ置く。テンプレートに足すと配列の長さが
+// 変わって shuffled の乱数の消費が変わり、無関係なコメントまで中身が変わるので、生成が
+// 終わってから SAMPLE-1 の最初のコメントに 1 行足す（乱数を消費しない）。
+{
+  const c = rawComments.find((c) => c.issueId === 900000 + 1);
+  if (c.content == null)
+    throw new Error("SAMPLE-1 の最初のコメントに本文がありません");
+  c.content += `\n\n同じ話を ${SPACE_URL}/view/${PROJECT_KEY}-16 でもしています。そちらも見てください。`;
+}
 
 // --- ダンプ本体 ---
 const dump = {

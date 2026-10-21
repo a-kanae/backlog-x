@@ -33,15 +33,18 @@ function isMeaningful(comment: StoredComment): boolean {
 }
 
 /**
- * 初期描画件数を決める。通常は PAGE_SIZE だが、URL ハッシュ #comment-<id> でジャンプしてきた
- * 対象が PAGE_SIZE より後ろにある場合は、その対象を含む（PAGE_SIZE 単位で切り上げた）件数に
- * 引き上げる。対象が未描画だとスクロール先が DOM に無くジャンプが空振りするため。
+ * ジャンプ対象（URL ハッシュ #comment-<id>）を描画するのに必要な件数。
+ * 対象が無ければ 0。対象が後ろにあれば、その対象を含む（PAGE_SIZE 単位で切り上げた）件数。
+ * 対象が未描画だとスクロール先が DOM に無くジャンプが空振りするため、初期描画と、
+ * 表示中にハッシュが変わったときの両方で、これ以上に描画件数を引き上げる。
  */
-function initialVisibleCount(visible: StoredComment[]): number {
-  const targetId = parseDetailHash().commentId;
-  if (targetId == null) return PAGE_SIZE;
+function countToShow(
+  visible: StoredComment[],
+  targetId: number | null,
+): number {
+  if (targetId == null) return 0;
   const idx = visible.findIndex((c) => c.id === targetId);
-  if (idx < 0) return PAGE_SIZE;
+  if (idx < 0) return 0;
   return Math.ceil((idx + 1) / PAGE_SIZE) * PAGE_SIZE;
 }
 
@@ -67,7 +70,18 @@ export function CommentThread({
 }) {
   const ds = useDataSource();
   const [comments, setComments] = useState<StoredComment[] | null>(null);
-  // 検索結果からジャンプしてきたときに強調するコメント ID
+  // ジャンプ対象のコメント ID（URL ハッシュ #comment-<id>）。マウント時に読み、以後は hashchange で
+  // 追従する。同じ課題の本文・コメントの中にあるコメントへのリンク（BacklogText）は、Next の Link
+  // ではなくブラウザ標準のハッシュ遷移で開くので hashchange が発火する。
+  const [targetId, setTargetId] = useState<number | null>(
+    () => parseDetailHash().commentId,
+  );
+  useEffect(() => {
+    const onHashChange = () => setTargetId(parseDetailHash().commentId);
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+  // 強調しているコメント ID（ジャンプが済んだもの）。別のコメントへ移ると置き換わり、前の枠は消える
   const [highlightId, setHighlightId] = useState<number | null>(null);
   // 段階描画で「今表示している件数」。コメントが多い課題（791 件など）で全件を一度に
   // DOM へ出すと重いため、visible の先頭 visibleCount 件だけ描画し sentinel で増やす。
@@ -94,7 +108,15 @@ export function CommentThread({
   const [renderedFor, setRenderedFor] = useState<StoredComment[] | null>(null);
   if (comments !== null && renderedFor !== comments) {
     setRenderedFor(comments);
-    setVisibleCount(initialVisibleCount(visible));
+    setVisibleCount(Math.max(PAGE_SIZE, countToShow(visible, targetId)));
+  }
+  // 表示中にハッシュが変わって（同じ課題の中のコメントへのリンク）、対象がまだ描画されて
+  // いない後ろにあれば、同じ流儀で描画件数を引き上げる。読み進めで増えた分は減らさない。
+  const [renderedTarget, setRenderedTarget] = useState<number | null>(targetId);
+  if (renderedTarget !== targetId) {
+    setRenderedTarget(targetId);
+    const need = countToShow(visible, targetId);
+    if (need > visibleCount) setVisibleCount(need);
   }
 
   // URL ハッシュ #comment-<id> の対象コメントへスクロール + 枠ハイライト（検索結果からの遷移）。
@@ -103,23 +125,24 @@ export function CommentThread({
   // setTimeout ベースの共通ヘルパ（scrollToSelectorWithRetry）でリトライしつつスクロールする。
   // 非同期境界（setTimeout）の中で setState するので set-state-in-effect には当たらない。
   //
-  // 依存に visibleCount を含める: 対象が initialVisibleCount で初期描画に含まれていても、
+  // 依存に visibleCount を含める: 対象が countToShow で初期描画に含まれていても、
   // 段階描画のリセット（レンダー中 setVisibleCount）と effect 実行の順序次第で、effect が
   // 走った時点でまだ対象が DOM に無いことがある（実測でハイライトが付かない症状を確認）。
   // visibleCount の変化でも再評価すれば、対象が描画され次第フックできる。ただし読み進めで
-  // visibleCount が増えるたびに再スクロールして対象位置へ引き戻すのは困るので、一度ハイライト
-  // したら（highlightId が入ったら）二度と発火しないようガードする。
+  // visibleCount が増えるたびに再スクロールして対象位置へ引き戻すのは困るので、今の対象を
+  // ハイライト済みなら（highlightId === targetId）発火しないようガードする。
+  // 対象が変わると（hashchange）ガードが外れて新しい対象へジャンプし、highlightId が
+  // 置き換わるので前の枠は消える。
   useEffect(() => {
     if (comments === null) return;
-    if (highlightId != null) return; // 既にジャンプ済みなら以後は何もしない
-    const targetId = parseDetailHash().commentId;
     if (targetId == null) return;
+    if (highlightId === targetId) return; // 今の対象へはジャンプ済み
     return scrollToSelectorWithRetry(
       () => document.body,
       `#comment-${targetId}`,
       () => setHighlightId(targetId),
     );
-  }, [comments, visibleCount, highlightId]);
+  }, [comments, visibleCount, highlightId, targetId]);
 
   // 「もっと読む」sentinel。残りがある間だけ DOM に置き、near になったら PAGE_SIZE ずつ増やす。
   // ユーザーが下へ読み進め、sentinel（描画済みコメントの末尾）が画面下端 + 余白に入ったら
