@@ -34,7 +34,8 @@ export function IssueDetail({ issue }: { issue: StoredIssue }) {
     ds.listUsers().then((list) => {
       if (!cancelled) setUsers(list);
     });
-    // 原本（Backlog）リンク用のスペース URL を projectMeta から取得
+    // スペース URL を projectMeta から取得（原本（Backlog）リンクと、本文中の課題 URL を
+    // 手元の課題へのリンクに読み替えるのに使う）
     ds.getProject(issue.projectId).then((meta) => {
       if (!cancelled) setSpaceUrl(meta?.spaceUrl);
     });
@@ -90,6 +91,7 @@ export function IssueDetail({ issue }: { issue: StoredIssue }) {
               text={issue.description}
               projectId={issue.projectId}
               projectKey={projectKey}
+              spaceUrl={spaceUrl}
               users={users}
               attachments={attachments}
             />
@@ -105,6 +107,7 @@ export function IssueDetail({ issue }: { issue: StoredIssue }) {
         projectId={issue.projectId}
         issueId={issue.id}
         projectKey={projectKey}
+        spaceUrl={spaceUrl}
         users={users}
         attachments={attachments}
       />

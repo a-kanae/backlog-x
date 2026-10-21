@@ -16,6 +16,8 @@ export function WikiDetail({ wiki }: { wiki: StoredWiki }) {
   const [users, setUsers] = useState<StoredUser[]>([]);
   // 本文中の素の課題キー（PROJ-123）を内部リンク化するため projectKey を引く
   const [projectKey, setProjectKey] = useState<string | undefined>(undefined);
+  // 本文中の課題 URL（このスペースのもの）を手元の課題へのリンクにするため spaceUrl も引く
+  const [spaceUrl, setSpaceUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -23,7 +25,9 @@ export function WikiDetail({ wiki }: { wiki: StoredWiki }) {
       if (!cancelled) setUsers(u);
     });
     ds.getProject(wiki.projectId).then((meta) => {
-      if (!cancelled) setProjectKey(meta?.projectKey);
+      if (cancelled) return;
+      setProjectKey(meta?.projectKey);
+      setSpaceUrl(meta?.spaceUrl);
     });
     return () => {
       cancelled = true;
@@ -63,6 +67,7 @@ export function WikiDetail({ wiki }: { wiki: StoredWiki }) {
             text={wiki.content}
             projectId={wiki.projectId}
             projectKey={projectKey}
+            spaceUrl={spaceUrl}
             users={users}
             highlight
           />

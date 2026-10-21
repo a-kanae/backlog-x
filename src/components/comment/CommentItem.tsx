@@ -20,6 +20,7 @@ export function CommentItem({
   highlighted = false,
   projectId,
   projectKey,
+  spaceUrl,
   users = [],
   attachments = [],
 }: {
@@ -27,6 +28,8 @@ export function CommentItem({
   highlighted?: boolean;
   projectId: number;
   projectKey?: string;
+  /** スペース URL。本文中の課題 URL を手元の課題へのリンクにする（BacklogText に渡す） */
+  spaceUrl?: string;
   users?: StoredUser[];
   /** 本文の #image(name) を解決するための添付メタ（この課題のもの） */
   attachments?: AttachmentMeta[];
@@ -53,6 +56,7 @@ export function CommentItem({
           text={comment.content ?? ""}
           projectId={projectId}
           projectKey={projectKey}
+          spaceUrl={spaceUrl}
           users={users}
           attachments={attachments}
         />
