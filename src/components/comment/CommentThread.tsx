@@ -49,12 +49,15 @@ export function CommentThread({
   projectId,
   issueId,
   projectKey,
+  spaceUrl,
   users = [],
   attachments = [],
 }: {
   projectId: number;
   issueId: number;
   projectKey?: string;
+  /** スペース URL。コメント本文中の課題 URL を手元の課題へのリンクにする（BacklogText に渡す） */
+  spaceUrl?: string;
   users?: StoredUser[];
   /**
    * この課題の添付メタ。コメント本文の #image(name) を解決するために渡す
@@ -188,6 +191,7 @@ export function CommentThread({
               highlighted={c.id === highlightId}
               projectId={projectId}
               projectKey={projectKey}
+              spaceUrl={spaceUrl}
               users={users}
               attachments={attachments}
             />

@@ -283,6 +283,8 @@ const commentTemplates = [
   () => `ありがとうございます。${pick(devices)} で表示が直っていました。`,
   () => `デザイン側の確認が必要なので、いったん保留にします。`,
   () => `${PROJECT_KEY}-${int(1, 60)} と同じ原因でした。合わせて対応します。`,
+  () =>
+    `同じ話を ${SPACE_URL}/view/${PROJECT_KEY}-${int(1, 60)} でもしています。そちらも見てください。`,
   () => `文言を修正しました。細かい表記は校正で拾ってもらう想定です。`,
   () =>
     `検索したところ、同じ書き方が他に ${int(2, 8)} 箇所ありました。まとめて直します。`,
@@ -355,6 +357,17 @@ const SHOWCASE_DESCRIPTION = [
   "'' 太字の指定 '' と、取り消し線の %%古い指定%% も使えます。",
   "",
   "関連する課題は SAMPLE-4 と SAMPLE-15 です。担当は @山田 太郎 さんです。",
+  "",
+  "** 関連リンク",
+  // Backlog の課題 URL（このスペース）は、外部リンクではなく手元の課題へのリンクに変換される。
+  // コメントのアンカー（#comment-<id>）付きなら、そのコメントへジャンプする
+  // （500001 は keyId=1 の最初のコメント ID。採番は下のループ順）。
+  `- 同じ原因の課題: ${SPACE_URL}/view/${PROJECT_KEY}-4`,
+  `- 経緯はこのコメント: ${SPACE_URL}/view/${PROJECT_KEY}-1#comment-500001`,
+  `- [[依頼元の課題>${SPACE_URL}/view/${PROJECT_KEY}-15]]`,
+  // 別スペース・別プロジェクトの課題 URL は手元に無いので外部リンクのまま残る
+  "- 別スペースの参考: https://another-space.backlog.jp/view/OTHER-12",
+  `- Wiki はまだ変換しない: ${SPACE_URL}/alias/wiki/1`,
 ].join("\n");
 
 const iso = (y, m, d, h, mi) =>
@@ -468,7 +481,7 @@ const rawWikis = [
   },
   {
     name: "議事録/2026-06-15 定例",
-    content: `* 参加者\n\n- 山田 太郎\n- 鈴木 花子\n- 佐藤 次郎\n\n* 決定事項\n\n- 公開日は 6/30 を目標にする\n- 多言語対応は次のフェーズに回す\n\n* 次回までの宿題\n\n@佐藤 次郎 さん: 表示速度の計測結果をまとめる（${PROJECT_KEY}-31）`,
+    content: `* 参加者\n\n- 山田 太郎\n- 鈴木 花子\n- 佐藤 次郎\n\n* 決定事項\n\n- 公開日は 6/30 を目標にする\n- 多言語対応は次のフェーズに回す\n\n* 次回までの宿題\n\n@佐藤 次郎 さん: 表示速度の計測結果をまとめる（${PROJECT_KEY}-31）\n\n* 関連\n\n- ${SPACE_URL}/view/${PROJECT_KEY}-1#comment-500001\n- https://another-space.backlog.jp/view/OTHER-12`,
   },
   { name: "空ページの例", content: null },
 ].map((w, i) => ({

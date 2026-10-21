@@ -24,7 +24,8 @@ import { EmbeddedImage } from "./EmbeddedImage";
  *
  * Backlog 記法 → Markdown に変換し、react-markdown + remark-gfm で描画する。
  * react-markdown は生 HTML を無効化（デフォルト）するため dangerouslySetInnerHTML 不要・XSS 安全。
- * 課題内部リンク（bx-issue:keyId）は Next の Link に、メンション（bx-mention:名前）は MentionChip に、
+ * 課題内部リンク（bx-issue:keyId、コメントなら bx-issue:keyId#comment-<id>）は Next の Link に、
+ * メンション（bx-mention:名前）は MentionChip に、
  * 埋め込み画像（bx-attachment:添付ファイル名）は OPFS のバイナリを objectURL にした img に、
  * 外部リンクは別タブに差し替える。
  *
@@ -35,6 +36,7 @@ export function BacklogText({
   text,
   projectId,
   projectKey,
+  spaceUrl,
   users = [],
   attachments = [],
   highlight = false,
@@ -42,6 +44,13 @@ export function BacklogText({
   text: string;
   projectId: number;
   projectKey?: string;
+  /**
+   * このプロジェクトが属するスペースの URL（projectMeta.spaceUrl）。本文に貼られた
+   * このスペース・このプロジェクトの課題 URL（`/view/KEY-123#comment-<id>`）を、外部の Backlog
+   * ではなく手元の課題（コメント）へのリンクにするために渡す。無ければ URL は変換しない
+   * （フォルダ取り込みなど spaceUrl が無いプロジェクトは従来どおり外部リンクのまま）。
+   */
+  spaceUrl?: string;
   /** メンション @ユーザー名 の照合・アイコン解決に使う取り込み済みユーザー */
   users?: StoredUser[];
   /** 本文中の #image(name) を解決するための添付メタ（その課題のもの） */
@@ -82,7 +91,11 @@ export function BacklogText({
 
   const mentionNames = users.map((u) => u.name);
   const userByName = new Map(users.map((u) => [u.name, u]));
-  const markdown = backlogToMarkdown(text, { projectKey, mentionNames });
+  const markdown = backlogToMarkdown(text, {
+    projectKey,
+    mentionNames,
+    spaceUrl,
+  });
 
   const components: Components = {
     // 埋め込み画像（bx-attachment:添付ファイル名）→ OPFS のバイナリを objectURL で表示。
@@ -125,12 +138,17 @@ export function BacklogText({
         );
         return <MentionChip name={name} user={userByName.get(name) ?? null} />;
       }
-      // 課題内部リンク（bx-issue:keyId）→ アプリ内遷移
+      // 課題内部リンク（bx-issue:keyId / bx-issue:keyId#comment-<id>）→ アプリ内遷移。
+      // コメントのアンカーは課題詳細の URL ハッシュにそのまま載せる（CommentThread が
+      // #comment-<id> を読んで該当コメントへスクロール＋枠を強調する）。
       if (url.startsWith(`${INTERNAL_ISSUE_SCHEME}:`)) {
-        const keyId = url.slice(INTERNAL_ISSUE_SCHEME.length + 1);
+        const target = url.slice(INTERNAL_ISSUE_SCHEME.length + 1);
+        const hashAt = target.indexOf("#");
+        const keyId = hashAt < 0 ? target : target.slice(0, hashAt);
+        const hash = hashAt < 0 ? "" : target.slice(hashAt);
         return (
           <Link
-            href={`/projects/${projectId}/issues/${keyId}`}
+            href={`/projects/${projectId}/issues/${keyId}${hash}`}
             className="text-sky-600 underline hover:text-sky-700 dark:text-sky-400"
           >
             {children}
