@@ -137,6 +137,14 @@ export function parseDetailHash(): DetailHash {
  */
 export function navigateToHash(hash: string): void {
   const next = hash.startsWith("#") ? hash : `#${hash}`;
+  // 今のハッシュと同じなら履歴を増やさない（hashchange も出ないので、強調中の対象が
+  // 画面外に流れていたときのために、要素へスクロールだけする）。
+  if (window.location.hash === next) {
+    document
+      .getElementById(next.slice(1))
+      ?.scrollIntoView({ behavior: "instant", block: "center" });
+    return;
+  }
   window.history.pushState(null, "", next);
   window.dispatchEvent(new HashChangeEvent("hashchange"));
 }
